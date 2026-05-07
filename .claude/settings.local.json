@@ -23,7 +23,10 @@
       "Bash(git commit -m 'feat: página de primeiro acesso com auto-cadastro *)",
       "Bash(Get-ChildItem -Path \"c:\\\\Projects\\\\fanpricing\\\\src\\\\app\\\\\\(dashboard\\)\" -Recurse -Filter \"*.tsx\")",
       "Bash(Select-Object -ExpandProperty FullName)",
-      "Bash(Find /c/Projects/fanpricing -type f -name \"tailwind.config.*\" -o -name \"next.config.*\")"
+      "Bash(Find /c/Projects/fanpricing -type f -name \"tailwind.config.*\" -o -name \"next.config.*\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Projects\\\\fanpricing\" -Recurse -Depth 2)",
+      "Bash(Select-Object -First 50 FullName)",
+      "Bash(xargs grep -l \"company_name\")"
     ],
     "additionalDirectories": [
       "g:\\Meu Drive\\End\\Projetos E2E - F2F\\Fun`Pricing\\fanpricing"
