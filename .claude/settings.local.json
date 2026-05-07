@@ -26,7 +26,8 @@
       "Bash(Find /c/Projects/fanpricing -type f -name \"tailwind.config.*\" -o -name \"next.config.*\")",
       "Bash(Get-ChildItem -Path \"c:\\\\Projects\\\\fanpricing\" -Recurse -Depth 2)",
       "Bash(Select-Object -First 50 FullName)",
-      "Bash(xargs grep -l \"company_name\")"
+      "Bash(xargs grep -l \"company_name\")",
+      "mcp__claude_ai_Supabase__apply_migration"
     ],
     "additionalDirectories": [
       "g:\\Meu Drive\\End\\Projetos E2E - F2F\\Fun`Pricing\\fanpricing"
