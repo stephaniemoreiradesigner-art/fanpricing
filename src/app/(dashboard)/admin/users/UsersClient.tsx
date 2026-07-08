@@ -3,8 +3,8 @@
 import { useRef, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Trash2, Plus, Pencil, X, Camera, Loader2 } from 'lucide-react'
-import { updateUser, deleteUser, inviteUser } from '@/app/actions/users'
+import { Trash2, Plus, Pencil, X, Camera, Loader2, KeyRound } from 'lucide-react'
+import { updateUser, deleteUser, inviteUser, resetUserPassword } from '@/app/actions/users'
 import { createClient } from '@/lib/supabase/client'
 import type { UserRole } from '@/types'
 
@@ -88,6 +88,13 @@ export function UsersClient({ users, currentUserId }: Props) {
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [cepLoading, setCepLoading] = useState(false)
+
+  // Redefinição de senha
+  const [resetUser, setResetUser] = useState<UserRow | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [resetting, setResetting] = useState(false)
+  const [resetError, setResetError] = useState<string | null>(null)
+  const [resetDone, setResetDone] = useState(false)
 
   const avatarInputRef = useRef<HTMLInputElement>(null)
 
@@ -175,6 +182,26 @@ export function UsersClient({ users, currentUserId }: Props) {
     await deleteUser(user.id)
     setDeletingId(null)
     router.refresh()
+  }
+
+  function openReset(user: UserRow) {
+    setResetUser(user)
+    setNewPassword('')
+    setResetError(null)
+    setResetDone(false)
+  }
+
+  async function handleReset() {
+    if (!resetUser) return
+    setResetting(true)
+    setResetError(null)
+    const result = await resetUserPassword(resetUser.id, newPassword)
+    setResetting(false)
+    if (result.error) {
+      setResetError(result.error)
+      return
+    }
+    setResetDone(true)
   }
 
   async function handleInvite(formData: FormData) {
@@ -344,6 +371,78 @@ export function UsersClient({ users, currentUserId }: Props) {
         </div>
       )}
 
+      {/* ── Modal de redefinição de senha ──────────────────────────────────── */}
+      {resetUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <p className="text-base font-semibold text-gray-900">Redefinir senha</p>
+              <button onClick={() => setResetUser(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              {resetDone ? (
+                <div className="text-sm text-gray-700 space-y-1">
+                  <p className="font-medium text-green-600">Senha redefinida com sucesso.</p>
+                  <p className="text-gray-500">
+                    {resetUser.name || resetUser.email} já pode entrar com a nova senha.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500">
+                    Definir uma nova senha para <span className="font-medium text-gray-800">{resetUser.name || resetUser.email}</span>.
+                  </p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 mb-1">Nova senha</label>
+                    <input
+                      type="text"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Mínimo de 6 caracteres"
+                      autoComplete="new-password"
+                      className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-2.5 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">A senha fica visível para você poder copiar e repassar.</p>
+                  </div>
+                  {resetError && <p className="text-xs text-red-500">{resetError}</p>}
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 px-6 py-4 border-t border-gray-100">
+              {resetDone ? (
+                <button
+                  onClick={() => setResetUser(null)}
+                  className="bg-[var(--brand)] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[var(--brand-dark)] transition-colors"
+                >
+                  Fechar
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleReset}
+                    disabled={resetting || newPassword.length < 6}
+                    className="bg-[var(--brand)] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[var(--brand-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {resetting && <Loader2 size={14} className="animate-spin" />}
+                    {resetting ? 'Redefinindo...' : 'Redefinir senha'}
+                  </button>
+                  <button
+                    onClick={() => setResetUser(null)}
+                    className="border border-gray-300 text-gray-600 text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Lista de usuários ─────────────────────────────────────────────── */}
       <div className="space-y-4">
         {showInvite && (
@@ -472,6 +571,13 @@ export function UsersClient({ users, currentUserId }: Props) {
                           title="Editar usuário"
                         >
                           <Pencil size={15} />
+                        </button>
+                        <button
+                          onClick={() => openReset(user)}
+                          className="text-gray-400 hover:text-[var(--brand)] transition-colors"
+                          title="Redefinir senha"
+                        >
+                          <KeyRound size={15} />
                         </button>
                         <button
                           onClick={() => handleDelete(user)}

@@ -29,6 +29,37 @@ export async function updateUser(
   return {}
 }
 
+export async function resetUserPassword(
+  userId: string,
+  newPassword: string
+): Promise<{ error?: string }> {
+  // Apenas administradores podem redefinir a senha de um usuário.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Sessão expirada. Faça login novamente.' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.role !== 'admin') {
+    return { error: 'Apenas administradores podem redefinir senhas.' }
+  }
+
+  if (!newPassword || newPassword.length < 6) {
+    return { error: 'A senha deve ter ao menos 6 caracteres.' }
+  }
+
+  const admin = createAdminClient()
+  const { error } = await admin.auth.admin.updateUserById(userId, {
+    password: newPassword,
+  })
+  if (error) return { error: error.message }
+  return {}
+}
+
 export async function deleteUser(userId: string) {
   const admin = createAdminClient()
   await admin.auth.admin.deleteUser(userId)
