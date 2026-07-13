@@ -202,3 +202,32 @@ export interface Contract {
   proposal?: Proposal
   client?: Client
 }
+
+// ---- Proposta do módulo (gerada a partir de um orçamento labor+ferramentas) ----
+export type ProposalBillingModel = 'projeto' | 'always_on'
+export type QuoteProposalStatus = 'draft' | 'sent' | 'viewed' | 'accepted'
+
+export interface QuoteProposal {
+  id: string
+  quote_id: string | null
+  client_id: string | null
+  created_by: string | null
+  status: QuoteProposalStatus
+  title: string
+  intro: string | null
+  scope: string | null
+  billing_model: ProposalBillingModel
+  contract_months: number
+  total_monthly: number
+  total_setup: number
+  discount_pct: number
+  public_token: string | null
+  valid_until: string | null
+  sent_at: string | null
+  viewed_at: string | null
+  accepted_at: string | null
+  accepted_by_name: string | null
+  accepted_by_email: string | null
+  created_at: string
+  client?: Client
+}

@@ -3,17 +3,24 @@ import { Send } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency } from '@/lib/calculations'
 import { ProposalActions } from './ProposalActions'
-import type { Proposal } from '@/types'
+import type { QuoteProposal } from '@/types'
 
 const STATUS_LABEL: Record<string, string> = {
   draft: 'Rascunho',
   sent: 'Enviada',
   viewed: 'Visualizada',
+  accepted: 'Aceita',
 }
 const STATUS_COLOR: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-500',
   sent: 'bg-blue-50 text-blue-700',
-  viewed: 'bg-green-50 text-green-700',
+  viewed: 'bg-amber-50 text-amber-700',
+  accepted: 'bg-green-50 text-green-700',
+}
+
+const BILLING_LABEL: Record<string, string> = {
+  projeto: 'Projeto (50/50)',
+  always_on: 'Always On',
 }
 
 export default async function ProposalsPage() {
@@ -23,8 +30,8 @@ export default async function ProposalsPage() {
   const isAdmin = profile?.role === 'admin'
 
   let query = supabase
-    .from('proposals')
-    .select('*, client:clients(razao_social), quote:quotes(total_monthly, discount_pct)')
+    .from('quote_proposals')
+    .select('*, client:clients(razao_social)')
     .order('created_at', { ascending: false })
 
   if (!isAdmin) query = query.eq('created_by', user!.id)
@@ -66,35 +73,31 @@ export default async function ProposalsPage() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wider">
                 <th className="text-left px-6 py-3 font-medium">Cliente</th>
+                <th className="text-left px-6 py-3 font-medium">Título</th>
                 <th className="text-left px-6 py-3 font-medium">Total/mês</th>
-                <th className="text-left px-6 py-3 font-medium">Contrato</th>
+                <th className="text-left px-6 py-3 font-medium">Modelo</th>
                 <th className="text-left px-6 py-3 font-medium">Status</th>
                 <th className="text-left px-6 py-3 font-medium">Data</th>
                 <th className="px-6 py-3" />
               </tr>
             </thead>
             <tbody>
-              {(proposals as Proposal[]).map((proposal) => (
-                <tr key={proposal.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    {proposal.client?.razao_social ?? '—'}
-                  </td>
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                    {formatCurrency(proposal.quote?.total_monthly ?? 0)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {proposal.contract_months} meses
-                  </td>
+              {(proposals as QuoteProposal[]).map((p) => (
+                <tr key={p.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{p.client?.razao_social ?? '—'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{p.title}</td>
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">{formatCurrency(p.total_monthly)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">{BILLING_LABEL[p.billing_model]}</td>
                   <td className="px-6 py-4">
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${STATUS_COLOR[proposal.status]}`}>
-                      {STATUS_LABEL[proposal.status]}
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${STATUS_COLOR[p.status]}`}>
+                      {STATUS_LABEL[p.status]}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-400">
-                    {new Date(proposal.created_at).toLocaleDateString('pt-BR')}
+                    {new Date(p.created_at).toLocaleDateString('pt-BR')}
                   </td>
                   <td className="px-6 py-4">
-                    <ProposalActions proposalId={proposal.id} />
+                    <ProposalActions proposalId={p.id} />
                   </td>
                 </tr>
               ))}
