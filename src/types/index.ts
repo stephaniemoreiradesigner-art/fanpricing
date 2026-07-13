@@ -32,20 +32,49 @@ export interface Client {
   created_at: string
 }
 
+export type LaborRegime = 'clt' | 'pj'
+
 export interface Labor {
   id: string
   title: string
   level: 'junior' | 'pleno' | 'senior'
   monthly_salary: number
   hourly_rate: number
+  // Regime e base de horas mensais — editavel por empresa. CLT = 220h padrao.
+  regime: LaborRegime
+  monthly_hours: number
   created_at: string
 }
 
+// Cadastro independente de ferramentas/servicos (tabela separada de mao de obra).
+export interface Tool {
+  id: string
+  name: string
+  monthly_cost: number
+  created_at: string
+}
+
+// Configuracao de precificacao — variaveis do Racional (MD do Igor, 13/07/2026).
+// Singleton editavel so por admin (dados sensiveis: nunca expostos ao cliente).
+// Todos os *_pct sao fracoes (0.10 = 10%). prazo_dias em dias corridos.
+export interface PricingConfig {
+  id: string
+  ovh_pct: number         // §4 Overhead (% sobre Custo Direto)
+  cdi_pct: number         // §6 CDI anual
+  spread_pct: number      // §7 Spread bancario anual
+  prazo_dias: number      // §8 Prazo de recebimento (dias)
+  reserva_pct: number     // §10 Reserva de risco
+  comissao_pct: number    // §12 Comissao broker (custo comercial)
+  impostos_pct: number    // §15 Impostos sobre a receita
+  margem_alvo_pct: number // §16 Margem alvo
+  updated_at: string
+  updated_by: string | null
+}
+
+// Alias legado — telas de produto antigas ainda importam MarkupConfig.
+// Nao usar em codigo novo; usar PricingConfig.
 export interface MarkupConfig {
   id: string
-  overhead_pct: number
-  taxes_pct: number
-  net_margin_pct: number
   markup_result: number
   updated_at: string
   updated_by: string | null
@@ -76,6 +105,45 @@ export interface ProductTool {
   monthly_cost: number
 }
 
+// ---- Composicao do orcamento baseada em pessoas + ferramentas ----
+export interface QuoteLaborLine {
+  labor_id: string
+  title: string
+  level: Labor['level']
+  hourly_rate: number
+  monthly_hours: number
+  // Alocacao em porcentagem (0-100). Ex: 50 = meio periodo do profissional.
+  allocation_pct: number
+}
+
+export interface QuoteToolLine {
+  tool_id: string
+  name: string
+  monthly_cost: number
+}
+
+// Snapshot da composicao salvo no orcamento (jsonb).
+export interface QuoteComposition {
+  labor: QuoteLaborLine[]
+  tools: QuoteToolLine[]
+}
+
+// Detalhamento de custo (cascata do MD) exibido na tela "Ver detalhes".
+export interface CostBreakdown {
+  custoMOD: number         // §1 Custo de mao de obra
+  custoAdicional: number   // §2 Ferramentas/servicos
+  custoDireto: number      // §3 MOD + Adicional
+  custoOVH: number         // §5 Custo de overhead
+  custoFinanceiro: number  // §9 Custo financeiro (juros compostos)
+  custoReserva: number     // §11 Reserva de risco
+  custoComissao: number    // §13 Custo comercial
+  baseOperacional: number  // §14 Base operacional
+  precoVendaBruto: number  // §18 Preco de venda antes do desconto
+  precoVenda: number       // §18 Preco de venda com desconto
+  margemReal: number       // §19 Margem real (fracao)
+  lucroReal: number        // §20 Lucro real (R$)
+}
+
 export interface Quote {
   id: string
   client_id: string | null
@@ -87,6 +155,8 @@ export interface Quote {
   profit_margin: number
   notes: string | null
   created_at: string
+  composition?: QuoteComposition | null
+  sale_price?: number | null
   client?: Client
   quote_items?: QuoteItem[]
 }

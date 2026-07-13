@@ -168,6 +168,8 @@ export function LaborClient({ items }: Props) {
           <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wider">
             <th className="text-left px-6 py-3 font-medium">Cargo</th>
             <th className="text-left px-6 py-3 font-medium">Nível</th>
+            <th className="text-left px-6 py-3 font-medium">Regime</th>
+            <th className="text-left px-6 py-3 font-medium">Carga (h/mês)</th>
             <th className="text-left px-6 py-3 font-medium">Salário mensal</th>
             <th className="text-left px-6 py-3 font-medium">Valor/hora</th>
             <th className="px-6 py-3" />
@@ -199,6 +201,8 @@ export function LaborClient({ items }: Props) {
                     {LEVELS[item.level]}
                   </span>
                 </td>
+                <td className="px-6 py-3 text-sm text-gray-500 uppercase">{item.regime ?? 'clt'}</td>
+                <td className="px-6 py-3 text-sm text-gray-500">{item.monthly_hours ?? 220}h</td>
                 <td className="px-6 py-3 text-sm text-gray-700">{formatCurrency(item.monthly_salary)}</td>
                 <td className="px-6 py-3 text-sm text-gray-500">{formatCurrency(item.hourly_rate)}/h</td>
                 <td className="px-6 py-3">
@@ -226,7 +230,7 @@ export function LaborClient({ items }: Props) {
 
           {items.length === 0 && !adding && (
             <tr>
-              <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-400">
+              <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-400">
                 Nenhum profissional cadastrado ainda. Clique em &quot;Adicionar&quot; ou importe um CSV.
               </td>
             </tr>
@@ -250,8 +254,16 @@ function LaborRow({
   onCancel: () => void
 }) {
   const [salary, setSalary] = useState(item?.monthly_salary ?? 0)
+  const [regime, setRegime] = useState<'clt' | 'pj'>(item?.regime ?? 'clt')
+  const [hours, setHours] = useState(item?.monthly_hours ?? 220)
   const [saving, setSaving] = useState(false)
-  const hourlyRate = salary / 220
+  const hourlyRate = hours > 0 ? salary / hours : 0
+
+  function handleRegimeChange(next: 'clt' | 'pj') {
+    setRegime(next)
+    // Sugere a base padrão do regime só quando o usuário ainda não customizou.
+    if (!item) setHours(next === 'clt' ? 220 : 160)
+  }
 
   async function handleSubmit(formData: FormData) {
     setSaving(true)
@@ -283,6 +295,31 @@ function LaborRow({
           <option value="pleno">Pleno</option>
           <option value="senior">Sênior</option>
         </select>
+      </td>
+      <td className="px-6 py-2.5">
+        <select
+          form={formId}
+          name="regime"
+          value={regime}
+          onChange={(e) => handleRegimeChange(e.target.value as 'clt' | 'pj')}
+          className="bg-white text-gray-900 border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent"
+        >
+          <option value="clt">CLT</option>
+          <option value="pj">PJ</option>
+        </select>
+      </td>
+      <td className="px-6 py-2.5">
+        <input
+          form={formId}
+          type="number"
+          name="monthly_hours"
+          value={hours}
+          min={1}
+          step={1}
+          onChange={(e) => setHours(parseFloat(e.target.value) || 0)}
+          required
+          className="w-24 bg-white text-gray-900 border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent"
+        />
       </td>
       <td className="px-6 py-2.5">
         <div className="relative w-40">
