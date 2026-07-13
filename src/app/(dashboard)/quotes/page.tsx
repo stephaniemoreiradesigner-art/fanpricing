@@ -13,18 +13,12 @@ export default async function QuotesPage() {
 
   let query = supabase
     .from('quotes')
-    .select('*, client:clients(razao_social, nome_fantasia)')
+    .select('*, client:clients(razao_social, nome_fantasia), quote_items(id, calculated_price, product:products(name))')
     .order('created_at', { ascending: false })
 
   if (!isAdmin) query = query.eq('created_by', user!.id)
 
   const { data: quotes } = await query
-
-  function itemCount(q: Quote): number {
-    const c = q.composition
-    if (!c) return 0
-    return (c.labor?.length ?? 0) + (c.tools?.length ?? 0)
-  }
 
   return (
     <div className="space-y-6">
@@ -61,7 +55,7 @@ export default async function QuotesPage() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wider">
                 <th className="text-left px-6 py-3 font-medium">Cliente</th>
-                <th className="text-left px-6 py-3 font-medium">Itens</th>
+                <th className="text-left px-6 py-3 font-medium">Produtos</th>
                 <th className="text-left px-6 py-3 font-medium">Total/mês</th>
                 <th className="text-left px-6 py-3 font-medium">Data</th>
                 <th className="px-6 py-3" />
@@ -71,17 +65,19 @@ export default async function QuotesPage() {
               {(quotes as Quote[]).map((quote) => (
                 <tr key={quote.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <p className="text-sm font-medium text-gray-900">{quote.client?.razao_social ?? '—'}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {quote.client?.razao_social ?? '—'}
+                    </p>
                     {quote.client?.nome_fantasia && (
                       <p className="text-xs text-gray-400 mt-0.5">{quote.client.nome_fantasia}</p>
                     )}
                   </td>
                   <td className="px-6 py-4">
                     <p className="text-sm text-gray-600">
-                      {itemCount(quote)} {itemCount(quote) === 1 ? 'item' : 'itens'}
+                      {quote.quote_items?.length ?? 0} produto{(quote.quote_items?.length ?? 0) !== 1 ? 's' : ''}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                      {(quote.composition?.labor ?? []).map((l) => l.title).filter(Boolean).join(', ')}
+                      {quote.quote_items?.map((qi) => qi.product?.name).filter(Boolean).join(', ')}
                     </p>
                   </td>
                   <td className="px-6 py-4">

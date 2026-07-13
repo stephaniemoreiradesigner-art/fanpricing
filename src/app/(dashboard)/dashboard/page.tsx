@@ -3,19 +3,6 @@ import { FileText, Send, FileSignature, TrendingUp, Users, DollarSign } from 'lu
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency } from '@/lib/calculations'
 
-const STATUS_COLOR: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-500',
-  sent: 'bg-blue-50 text-blue-700',
-  viewed: 'bg-amber-50 text-amber-700',
-  accepted: 'bg-green-50 text-green-700',
-}
-const STATUS_LABEL: Record<string, string> = {
-  draft: 'Rascunho',
-  sent: 'Enviada',
-  viewed: 'Visualizada',
-  accepted: 'Aceita',
-}
-
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -25,6 +12,7 @@ export default async function DashboardPage() {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
+  // Contagens totais
   const [
     { count: totalQuotes },
     { count: totalProposals },
@@ -32,40 +20,56 @@ export default async function DashboardPage() {
     { count: totalClients },
   ] = await Promise.all([
     supabase.from('quotes').select('*', { count: 'exact', head: true }),
-    supabase.from('quote_proposals').select('*', { count: 'exact', head: true }),
+    supabase.from('proposals').select('*', { count: 'exact', head: true }),
     supabase.from('contracts').select('*', { count: 'exact', head: true }),
     supabase.from('clients').select('*', { count: 'exact', head: true }),
   ])
 
-  // MRR: contratos ativos (assinados + concluídos) — valor da proposta vinculada
+  // MRR: soma dos contratos ativos (signed ou completed) com propostas vinculadas
   const { data: activeContracts } = await supabase
     .from('contracts')
-    .select('proposal:quote_proposals(total_monthly)')
+    .select('proposal:proposals(quote:quotes(total_monthly))')
     .in('status', ['signed', 'completed'])
 
   const mrr = (activeContracts ?? []).reduce((sum, c) => {
-    const total = (c.proposal as { total_monthly?: number } | null)?.total_monthly ?? 0
+    const total = (c.proposal as { quote?: { total_monthly?: number } } | null)?.quote?.total_monthly ?? 0
     return sum + total
   }, 0)
 
-  const { count: acceptedProposals } = await supabase
-    .from('quote_proposals')
+  // Propostas visualizadas (clientes abriram o link)
+  const { count: viewedProposals } = await supabase
+    .from('proposals')
     .select('*', { count: 'exact', head: true })
-    .eq('status', 'accepted')
+    .eq('status', 'viewed')
 
+  // Atividade do mês atual
   const [
     { count: quotesThisMonth },
+    { count: proposalsThisMonth },
   ] = await Promise.all([
     supabase.from('quotes').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonth),
+    supabase.from('proposals').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonth),
   ])
 
+  // Últimas propostas
   let proposalsQuery = supabase
-    .from('quote_proposals')
-    .select('id, status, created_at, total_monthly, client:clients(razao_social)')
+    .from('proposals')
+    .select('id, status, created_at, client:clients(razao_social), quote:quotes(total_monthly)')
     .order('created_at', { ascending: false })
     .limit(5)
   if (!isAdmin) proposalsQuery = proposalsQuery.eq('created_by', user!.id)
   const { data: recentProposals } = await proposalsQuery
+
+  const STATUS_COLOR: Record<string, string> = {
+    draft: 'bg-gray-100 text-gray-500',
+    sent: 'bg-blue-50 text-blue-700',
+    viewed: 'bg-green-50 text-green-700',
+  }
+  const STATUS_LABEL: Record<string, string> = {
+    draft: 'Rascunho',
+    sent: 'Enviada',
+    viewed: 'Visualizada',
+  }
 
   return (
     <div className="space-y-6">
@@ -76,11 +80,12 @@ export default async function DashboardPage() {
         </p>
       </div>
 
+      {/* KPIs principais */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="MRR ativo"
           value={formatCurrency(mrr)}
-          sub={`${totalContracts ?? 0} contrato${totalContracts !== 1 ? 's' : ''}`}
+          sub={`${totalContracts} contrato${totalContracts !== 1 ? 's' : ''}`}
           icon={DollarSign}
           color="bg-green-50 text-green-600"
         />
@@ -102,7 +107,7 @@ export default async function DashboardPage() {
         <KpiCard
           label="Propostas"
           value={String(totalProposals ?? 0)}
-          sub={`${acceptedProposals ?? 0} aceitas`}
+          sub={`${viewedProposals ?? 0} visualizadas`}
           icon={Send}
           color="bg-cyan-50 text-cyan-600"
           href="/proposals"
@@ -110,6 +115,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Ações rápidas */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp size={17} className="text-[var(--brand)]" />
@@ -119,23 +125,28 @@ export default async function DashboardPage() {
             <QuickLink href="/quotes/new" label="+ Novo orçamento" primary />
             <QuickLink href="/clients/new" label="+ Novo cliente" />
             <QuickLink href="/proposals" label="Ver propostas" />
-            {isAdmin && <QuickLink href="/admin/markup" label="Configurar precificação" />}
+            {isAdmin && <QuickLink href="/admin/markup" label="Configurar markup" />}
           </div>
         </div>
 
+        {/* Últimas propostas */}
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <FileSignature size={17} className="text-[var(--brand)]" />
               <h3 className="font-semibold text-gray-900">Últimas propostas</h3>
             </div>
-            <Link href="/proposals" className="text-xs text-[var(--brand)] hover:underline">Ver todas</Link>
+            <Link href="/proposals" className="text-xs text-[var(--brand)] hover:underline">
+              Ver todas
+            </Link>
           </div>
 
           {!recentProposals || recentProposals.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-6">
               Nenhuma proposta ainda.{' '}
-              <Link href="/quotes/new" className="text-[var(--brand)] underline">Criar orçamento</Link>
+              <Link href="/quotes/new" className="text-[var(--brand)] underline">
+                Criar orçamento
+              </Link>
             </p>
           ) : (
             <div className="space-y-3">
@@ -144,8 +155,8 @@ export default async function DashboardPage() {
                   id: string
                   status: string
                   created_at: string
-                  total_monthly: number
                   client?: { razao_social: string }
+                  quote?: { total_monthly: number }
                 }
                 return (
                   <Link
@@ -154,13 +165,17 @@ export default async function DashboardPage() {
                     className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{proposal.client?.razao_social ?? '—'}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {proposal.client?.razao_social ?? '—'}
+                      </p>
                       <p className="text-xs text-gray-400 mt-0.5">
                         {new Date(proposal.created_at).toLocaleDateString('pt-BR')}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-gray-700">{formatCurrency(proposal.total_monthly)}</span>
+                      <span className="text-sm font-semibold text-gray-700">
+                        {formatCurrency(proposal.quote?.total_monthly ?? 0)}
+                      </span>
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLOR[proposal.status]}`}>
                         {STATUS_LABEL[proposal.status]}
                       </span>
@@ -177,9 +192,19 @@ export default async function DashboardPage() {
 }
 
 function KpiCard({
-  label, value, sub, icon: Icon, color, href,
+  label,
+  value,
+  sub,
+  icon: Icon,
+  color,
+  href,
 }: {
-  label: string; value: string; sub: string; icon: React.ElementType; color: string; href?: string
+  label: string
+  value: string
+  sub: string
+  icon: React.ElementType
+  color: string
+  href?: string
 }) {
   const content = (
     <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-start gap-4 hover:shadow-sm transition-shadow">
@@ -193,6 +218,7 @@ function KpiCard({
       </div>
     </div>
   )
+
   return href ? <Link href={href}>{content}</Link> : <div>{content}</div>
 }
 
@@ -201,7 +227,9 @@ function QuickLink({ href, label, primary }: { href: string; label: string; prim
     <Link
       href={href}
       className={`block text-sm font-medium px-4 py-2.5 rounded-lg transition-colors ${
-        primary ? 'bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)]' : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
+        primary
+          ? 'bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)]'
+          : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
       }`}
     >
       {label}
