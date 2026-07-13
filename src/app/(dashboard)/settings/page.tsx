@@ -12,8 +12,8 @@ const ADMIN_SECTIONS = [
   },
   {
     href: '/admin/products',
-    label: 'Produtos',
-    description: 'Cadastre e edite produtos',
+    label: 'Catálogo',
+    description: 'Itens do catálogo (somente leitura)',
     icon: Package,
     color: 'bg-blue-50 text-blue-600',
   },

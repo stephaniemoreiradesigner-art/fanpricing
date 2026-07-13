@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Send, Link2, FileDown, Check } from 'lucide-react'
+import { Send, Link2, FileDown, Check, FileSignature } from 'lucide-react'
 import { markProposalSent } from '@/app/actions/proposals'
+import { createContractFromProposal } from '@/app/actions/contracts'
 import { formatCurrency } from '@/lib/calculations'
 import type { QuoteProposal } from '@/types'
 
@@ -17,6 +18,7 @@ interface Props {
 export function ProposalDetail({ proposal, companyName }: Props) {
   const [copied, setCopied] = useState(false)
   const [sending, setSending] = useState(false)
+  const [contracting, setContracting] = useState(false)
 
   const scopeLines = (proposal.scope ?? '')
     .split('\n')
@@ -42,7 +44,15 @@ export function ProposalDetail({ proposal, companyName }: Props) {
     setSending(false)
   }
 
+  async function handleContract() {
+    if (!confirm('Gerar contrato a partir desta proposta? A proposta será marcada como aceita.')) return
+    setContracting(true)
+    await createContractFromProposal(proposal.id)
+    setContracting(false)
+  }
+
   const clientName = proposal.client?.nome_fantasia || proposal.client?.razao_social || 'Cliente'
+  const isAccepted = proposal.status === 'accepted'
 
   return (
     <div className="space-y-4">
@@ -72,6 +82,14 @@ export function ProposalDetail({ proposal, companyName }: Props) {
           <FileDown size={15} />
           Baixar PDF
         </a>
+        <button
+          onClick={handleContract}
+          disabled={contracting || isAccepted}
+          className="flex items-center gap-2 border border-green-600 text-green-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-green-50 transition-colors disabled:opacity-50"
+        >
+          <FileSignature size={15} />
+          {isAccepted ? 'Contrato gerado' : contracting ? 'Gerando...' : 'Gerar contrato'}
+        </button>
       </div>
 
       {/* Documento client-facing */}
@@ -104,7 +122,6 @@ export function ProposalDetail({ proposal, companyName }: Props) {
             </section>
           )}
 
-          {/* Investimento — só valor total, impostos inclusos */}
           <section className="bg-gray-50 rounded-xl p-5 border border-gray-100">
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Investimento</h3>
             <div className="flex items-end justify-between">
