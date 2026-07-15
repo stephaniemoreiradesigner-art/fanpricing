@@ -354,7 +354,7 @@ export function UsersClient({ users, currentUserId }: Props) {
             <div className="flex items-center gap-3 px-6 py-4 border-t border-gray-100 sticky bottom-0 bg-white rounded-b-2xl">
               <button
                 onClick={handleSave}
-                disabled={saving || !editForm.full_name.trim()}
+                disabled={saving}
                 className="bg-[var(--brand)] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[var(--brand-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {saving && <Loader2 size={14} className="animate-spin" />}

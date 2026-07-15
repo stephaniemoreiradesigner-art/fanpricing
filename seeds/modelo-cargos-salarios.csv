@@ -1,0 +1,24 @@
+cargo,nivel,salario_mensal
+Gerente de Projetos,senior,14000
+Coordenador de Patrocinio,senior,13000
+Coordenador de Patrocinio,pleno,8000
+Gestor de Trafego Pago,senior,10000
+Gestor de Trafego Pago,pleno,6000
+Designer UX/UI,senior,9000
+Designer UX/UI,pleno,5000
+Designer UX/UI,junior,2500
+Motion Designer,pleno,6500
+Editor de Video,senior,10000
+Editor de Video,pleno,6000
+Editor de Video,junior,3000
+Fotografo,pleno,5000
+Desenvolvedor Front-end,senior,13000
+Desenvolvedor Front-end,pleno,8000
+Desenvolvedor Back-end,senior,14000
+Desenvolvedor Back-end,pleno,8500
+Analista de Dados,senior,12000
+Analista de Dados,pleno,7000
+Redator/Conteudo,pleno,5500
+Redator/Conteudo,junior,3000
+Social Media,pleno,5000
+Social Media,junior,2800

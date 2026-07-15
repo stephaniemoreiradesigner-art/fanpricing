@@ -1,155 +1,152 @@
 'use client'
 
 import { useState } from 'react'
-import { Copy, Check, Send, Download } from 'lucide-react'
+import { Send, Link2, FileDown, Check, FileSignature } from 'lucide-react'
 import { markProposalSent } from '@/app/actions/proposals'
+import { createContractFromProposal } from '@/app/actions/contracts'
 import { formatCurrency } from '@/lib/calculations'
-import type { Proposal } from '@/types'
+import type { QuoteProposal } from '@/types'
 
 interface Props {
-  proposal: Proposal
-  publicUrl: string
-  pdfUrl: string
+  proposal: QuoteProposal
+  companyName: string
+  brandColor: string
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  draft: 'Rascunho',
-  sent: 'Enviada',
-  viewed: 'Visualizada',
-}
-const STATUS_COLOR: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-600',
-  sent: 'bg-blue-50 text-blue-700',
-  viewed: 'bg-green-50 text-green-700',
-}
-
-export function ProposalDetail({ proposal, publicUrl, pdfUrl }: Props) {
+// Regras de sigilo (doc do Leandro): a proposta NUNCA expõe senioridade,
+// custos unitários, margem/markup ou alíquota. Só "Impostos inclusos".
+export function ProposalDetail({ proposal, companyName }: Props) {
   const [copied, setCopied] = useState(false)
-  const [marking, setMarking] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [contracting, setContracting] = useState(false)
 
-  async function handleCopy() {
-    await navigator.clipboard.writeText(publicUrl)
+  const scopeLines = (proposal.scope ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+
+  const paymentText =
+    proposal.billing_model === 'always_on'
+      ? 'Faturamento mensal (Always On), com pagamento todo dia 05 do mês subsequente à prestação do serviço.'
+      : '50% na assinatura do contrato e 50% na entrega final.'
+
+  function copyLink() {
+    if (!proposal.public_token) return
+    const url = `${window.location.origin}/p/${proposal.public_token}`
+    navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2500)
   }
 
-  async function handleMarkSent() {
-    setMarking(true)
+  async function handleSend() {
+    setSending(true)
     await markProposalSent(proposal.id)
-    setMarking(false)
+    setSending(false)
   }
 
-  const q = proposal.quote
+  async function handleContract() {
+    if (!confirm('Gerar contrato a partir desta proposta? A proposta será marcada como aceita.')) return
+    setContracting(true)
+    await createContractFromProposal(proposal.id)
+    setContracting(false)
+  }
+
+  const clientName = proposal.client?.nome_fantasia || proposal.client?.razao_social || 'Cliente'
+  const isAccepted = proposal.status === 'accepted'
 
   return (
-    <div className="space-y-6">
-      {/* Status e ações */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Status da proposta</p>
-            <span className={`text-sm font-semibold px-3 py-1 rounded-full ${STATUS_COLOR[proposal.status]}`}>
-              {STATUS_LABEL[proposal.status]}
-            </span>
-            {proposal.sent_at && (
-              <p className="text-xs text-gray-400 mt-2">
-                Enviada em {new Date(proposal.sent_at).toLocaleDateString('pt-BR')}
-              </p>
-            )}
-            {proposal.viewed_at && (
-              <p className="text-xs text-gray-400 mt-0.5">
-                Visualizada em {new Date(proposal.viewed_at).toLocaleDateString('pt-BR')}
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <a
-              href={pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <Download size={15} />
-              Baixar PDF
-            </a>
-            {proposal.status === 'draft' && (
-              <button
-                onClick={handleMarkSent}
-                disabled={marking}
-                className="flex items-center gap-2 bg-[var(--brand)] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[var(--brand-dark)] transition-colors disabled:opacity-50"
-              >
-                <Send size={15} />
-                {marking ? 'Marcando...' : 'Marcar como enviada'}
-              </button>
-            )}
-          </div>
-        </div>
+    <div className="space-y-4">
+      {/* Barra de ações (interna — não faz parte do documento) */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={handleSend}
+          disabled={sending || proposal.status !== 'draft'}
+          className="flex items-center gap-2 bg-[var(--brand)] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[var(--brand-dark)] transition-colors disabled:opacity-50"
+        >
+          <Send size={15} />
+          {proposal.status === 'draft' ? (sending ? 'Marcando...' : 'Marcar como enviada') : 'Enviada'}
+        </button>
+        <button
+          onClick={copyLink}
+          className="flex items-center gap-2 border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          {copied ? <Check size={15} className="text-green-600" /> : <Link2 size={15} />}
+          {copied ? 'Link copiado!' : 'Copiar link do cliente'}
+        </button>
+        <a
+          href={`/api/pdf/${proposal.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          <FileDown size={15} />
+          Baixar PDF
+        </a>
+        <button
+          onClick={handleContract}
+          disabled={contracting || isAccepted}
+          className="flex items-center gap-2 border border-green-600 text-green-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-green-50 transition-colors disabled:opacity-50"
+        >
+          <FileSignature size={15} />
+          {isAccepted ? 'Contrato gerado' : contracting ? 'Gerando...' : 'Gerar contrato'}
+        </button>
       </div>
 
-      {/* Link público */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-3">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Link público</h3>
-        <p className="text-xs text-gray-400">
-          Compartilhe este link com o cliente. Ele pode ser aberto sem login.
-        </p>
-        <div className="flex items-center gap-2">
-          <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-600 truncate font-mono">
-            {publicUrl}
-          </div>
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-2 border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors shrink-0"
-          >
-            {copied ? <Check size={15} className="text-green-600" /> : <Copy size={15} />}
-            {copied ? 'Copiado!' : 'Copiar'}
-          </button>
+      {/* Documento client-facing */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-8 py-6 border-b border-gray-100" style={{ backgroundColor: 'var(--brand)' }}>
+          <p className="text-white/80 text-xs uppercase tracking-wide">{companyName}</p>
+          <h1 className="text-white text-xl font-bold mt-1">{proposal.title}</h1>
+          <p className="text-white/90 text-sm mt-1">{clientName}</p>
         </div>
-      </div>
 
-      {/* Resumo financeiro */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Resumo financeiro</h3>
-
-        {q?.quote_items && q.quote_items.length > 0 && (
-          <div className="space-y-2">
-            {q.quote_items.map((item) => (
-              <div key={item.id} className="flex justify-between text-sm">
-                <span className="text-gray-600">{item.product?.name ?? '—'}</span>
-                <span className="text-gray-900 font-medium">{formatCurrency(item.calculated_price)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="h-px bg-gray-100" />
-
-        <div className="space-y-1.5 text-sm">
-          {(q?.discount_pct ?? 0) > 0 && (
-            <div className="flex justify-between text-gray-500">
-              <span>Desconto ({q!.discount_pct}%)</span>
-              <span className="text-red-500">− {formatCurrency(q!.total_monthly / (1 - q!.discount_pct / 100) * (q!.discount_pct / 100))}</span>
-            </div>
+        <div className="px-8 py-6 space-y-6">
+          {proposal.intro && (
+            <section>
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">O projeto</h3>
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{proposal.intro}</p>
+            </section>
           )}
-          <div className="flex justify-between font-bold text-base text-gray-900">
-            <span>Total mensal</span>
-            <span className="text-[var(--brand)]">{formatCurrency(q?.total_monthly ?? 0)}</span>
-          </div>
-        </div>
 
-        <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-1.5 text-gray-600">
-          <div className="flex justify-between">
-            <span>Duração do contrato</span>
-            <span className="font-medium">{proposal.contract_months} meses</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Setup — pagamento</span>
-            <span className="font-medium capitalize">{proposal.setup_payment_method}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Setup — parcelas</span>
-            <span className="font-medium">{proposal.setup_installments}x</span>
-          </div>
+          {scopeLines.length > 0 && (
+            <section>
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">O que está incluído</h3>
+              <ul className="space-y-1.5">
+                {scopeLines.map((line, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                    <Check size={16} className="text-[var(--brand)] mt-0.5 shrink-0" />
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <section className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Investimento</h3>
+            <div className="flex items-end justify-between">
+              <span className="text-sm text-gray-600">Valor mensal</span>
+              <span className="text-2xl font-bold text-[var(--brand)]">{formatCurrency(proposal.total_monthly)}</span>
+            </div>
+            {proposal.total_setup > 0 && (
+              <div className="flex items-center justify-between mt-2 text-sm">
+                <span className="text-gray-600">Setup (implantação)</span>
+                <span className="font-semibold text-gray-800">{formatCurrency(proposal.total_setup)}</span>
+              </div>
+            )}
+            <p className="text-xs text-gray-400 mt-3">Impostos inclusos.</p>
+          </section>
+
+          <section>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Condições de pagamento</h3>
+            <p className="text-sm text-gray-700">{paymentText}</p>
+            <p className="text-sm text-gray-500 mt-1">Vigência do contrato: {proposal.contract_months} meses.</p>
+            {proposal.valid_until && (
+              <p className="text-xs text-gray-400 mt-2">
+                Proposta válida até {new Date(proposal.valid_until).toLocaleDateString('pt-BR')}.
+              </p>
+            )}
+          </section>
         </div>
       </div>
     </div>

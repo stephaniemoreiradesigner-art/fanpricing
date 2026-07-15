@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Settings, UserCog, Package, Hammer, Percent, Palette, FolderUp } from 'lucide-react'
+import { Settings, UserCog, Package, Hammer, Percent, Palette, FolderUp, Wrench } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 
 const ADMIN_SECTIONS = [
@@ -12,8 +12,8 @@ const ADMIN_SECTIONS = [
   },
   {
     href: '/admin/products',
-    label: 'Produtos',
-    description: 'Cadastre e edite produtos',
+    label: 'Catálogo',
+    description: 'Itens do catálogo (somente leitura)',
     icon: Package,
     color: 'bg-blue-50 text-blue-600',
   },
@@ -25,9 +25,16 @@ const ADMIN_SECTIONS = [
     color: 'bg-amber-50 text-amber-600',
   },
   {
+    href: '/admin/tools',
+    label: 'Ferramentas',
+    description: 'Custos mensais de ferramentas',
+    icon: Wrench,
+    color: 'bg-cyan-50 text-cyan-600',
+  },
+  {
     href: '/admin/markup',
     label: 'Markup',
-    description: 'Overhead, impostos e margem',
+    description: 'Postos, margem, risco, comercial e financeiro',
     icon: Percent,
     color: 'bg-green-50 text-green-600',
   },

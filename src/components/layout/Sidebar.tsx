@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   Users,
+  Filter,
   FileText,
   Send,
   FileSignature,
@@ -20,6 +21,7 @@ import type { UserRole } from '@/types'
 const navItems = [
   { href: '/dashboard',  label: 'Dashboard',    icon: LayoutDashboard },
   { href: '/clients',    label: 'Clientes',      icon: Users },
+  { href: '/pipeline',   label: 'Pipeline',      icon: Filter },
   { href: '/quotes',     label: 'Orçamentos',    icon: FileText },
   { href: '/proposals',  label: 'Propostas',     icon: Send },
   { href: '/contracts',  label: 'Contratos',     icon: FileSignature },
