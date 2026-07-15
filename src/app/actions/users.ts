@@ -68,8 +68,6 @@ export async function updateUser(
 
   const full = { id: userId, ...(email ? { email } : {}), ...data }
   const { error } = await admin.from('profiles').upsert(full, { onConflict: 'id' })
-  console.log('[updateUser] userId=', userId, 'email=', email, 'payload=', full)
-  if (error) console.error('[updateUser] upsert FALHOU:', JSON.stringify(error))
 
   if (error) {
     // As colunas estendidas (phone/cnpj/address/avatar_url) podem não existir
@@ -84,13 +82,9 @@ export async function updateUser(
     const { error: basicError } = await admin
       .from('profiles')
       .upsert(basic, { onConflict: 'id' })
-    if (basicError) {
-      console.error('[updateUser] fallback FALHOU:', JSON.stringify(basicError))
-      return { error: basicError.message }
-    }
+    if (basicError) return { error: basicError.message }
   }
 
-  console.log('[updateUser] OK — gravado para', userId)
   revalidatePath('/admin/users')
   return {}
 }

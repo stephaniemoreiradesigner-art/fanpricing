@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { UsersClient } from './UsersClient'
 import type { UserRole } from '@/types'
 
@@ -6,14 +7,21 @@ export default async function UsersPage() {
   const supabase = await createClient()
   const { data: { user: currentUser } } = await supabase.auth.getUser()
 
+  // Lê perfis com o cliente admin (service role) para IGNORAR a RLS de profiles,
+  // que só deixa cada usuário ver a própria linha. Sem isso, a lista só mostraria
+  // o admin logado; os demais (ex.: Igor) apareceriam com os valores padrão
+  // ("Usuário"/"—") mesmo estando corretos no banco.
+  const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY
+  const db = hasServiceKey ? createAdminClient() : supabase
+
   // Busca perfis — tenta colunas estendidas, cai no básico se não existirem
   let profiles: Array<Record<string, unknown>> = []
-  const { data: extended, error: extError } = await supabase
+  const { data: extended, error: extError } = await db
     .from('profiles')
     .select('id, full_name, role, phone, cnpj, address, avatar_url')
 
   if (extError) {
-    const { data: basic } = await supabase.from('profiles').select('id, full_name, role')
+    const { data: basic } = await db.from('profiles').select('id, full_name, role')
     profiles = basic ?? []
   } else {
     profiles = extended ?? []
@@ -22,9 +30,8 @@ export default async function UsersPage() {
   // Busca usuários auth — requer SUPABASE_SERVICE_ROLE_KEY
   let authUsers: Array<{ id: string; email?: string; created_at: string }> = []
 
-  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (hasServiceKey) {
     try {
-      const { createAdminClient } = await import('@/lib/supabase/admin')
       const admin = createAdminClient()
       const { data } = await admin.auth.admin.listUsers()
       authUsers = data.users
