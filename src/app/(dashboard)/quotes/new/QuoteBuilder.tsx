@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, X, ChevronDown } from 'lucide-react'
 import { createQuote } from '@/app/actions/quotes'
-import { calcBreakdown, formatCurrency, formatPercent } from '@/lib/calculations'
+import { requestDiscountApproval } from '@/app/actions/discount-approvals'
+import { calcBreakdown, formatCurrency, formatPercent, MIN_MARGIN_FOR_DISCOUNT } from '@/lib/calculations'
 import type {
   Client,
   Labor,
@@ -34,6 +35,13 @@ export function QuoteBuilder({ clients, labor, tools, config, defaultClientId = 
   const [saving, setSaving] = useState(false)
   const [discount, setDiscount] = useState(0)
   const [showDetails, setShowDetails] = useState(false)
+
+  // Fluxo de aprovação de desconto (margem < 32%)
+  const [approvalStep, setApprovalStep] = useState<null | 'confirm' | 'justify'>(null)
+  const [justification, setJustification] = useState('')
+  const [pendingClient, setPendingClient] = useState('')
+  const [pendingNotes, setPendingNotes] = useState<string | null>(null)
+  const [approvalError, setApprovalError] = useState('')
 
   const [laborLines, setLaborLines] = useState<QuoteLaborLine[]>([])
   const [toolLines, setToolLines] = useState<QuoteToolLine[]>([])
@@ -81,13 +89,50 @@ export function QuoteBuilder({ clients, labor, tools, config, defaultClientId = 
     setToolLines((prev) => prev.filter((x) => x.tool_id !== id))
   }
 
+  const needsApproval =
+    discount > 0 && hasItems && breakdown.margemReal < MIN_MARGIN_FOR_DISCOUNT
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setSaving(true)
     const formData = new FormData(e.currentTarget)
+
+    // Desconto derruba a margem abaixo de 32% → exige aprovação de admin.
+    if (needsApproval) {
+      setPendingClient((formData.get('client_id') as string) ?? '')
+      setPendingNotes((formData.get('notes') as string) || null)
+      setJustification('')
+      setApprovalError('')
+      setApprovalStep('confirm')
+      return
+    }
+
+    setSaving(true)
     formData.set('composition', JSON.stringify(composition))
     await createQuote(formData)
     setSaving(false)
+  }
+
+  async function enviarSolicitacao() {
+    if (!justification.trim()) {
+      setApprovalError('Escreva o motivo do desconto.')
+      return
+    }
+    setSaving(true)
+    setApprovalError('')
+    const result = await requestDiscountApproval({
+      client_id: pendingClient,
+      composition,
+      notes: pendingNotes,
+      discount_pct: discount,
+      justification: justification.trim(),
+    })
+    setSaving(false)
+    if (result.error) {
+      setApprovalError(result.error)
+      return
+    }
+    setApprovalStep(null)
+    router.push('/quotes')
   }
 
   const availableLabor = labor.filter((l) => !laborLines.some((x) => x.labor_id === l.id))
@@ -317,7 +362,7 @@ export function QuoteBuilder({ clients, labor, tools, config, defaultClientId = 
             disabled={saving || !hasItems}
             className="w-full bg-[var(--brand)] text-white text-sm font-medium py-2.5 rounded-lg hover:bg-[var(--brand-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? 'Salvando...' : 'Salvar orçamento'}
+            {saving ? 'Salvando...' : needsApproval ? 'Solicitar aprovação de desconto' : 'Salvar orçamento'}
           </button>
           <button
             type="button"
@@ -328,6 +373,54 @@ export function QuoteBuilder({ clients, labor, tools, config, defaultClientId = 
           </button>
         </div>
       </div>
+
+      {approvalStep === 'confirm' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setApprovalStep(null)} />
+          <div className="relative bg-white border border-gray-200 rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h3 className="font-semibold text-gray-900">Desconto acima do permitido</h3>
+            <p className="text-sm text-gray-600">
+              Para aplicar esse desconto é necessário permissão de um administrador. Quer solicitar a permissão agora?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setApprovalStep(null)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                Não
+              </button>
+              <button type="button" onClick={() => setApprovalStep('justify')} className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: 'var(--brand)' }}>
+                Sim
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {approvalStep === 'justify' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => !saving && setApprovalStep(null)} />
+          <div className="relative bg-white border border-gray-200 rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h3 className="font-semibold text-gray-900">Justificativa do desconto</h3>
+            <p className="text-sm text-gray-500">
+              Desconto de {discount}% — margem resultante {formatPercent(breakdown.margemReal)}. Explique o motivo para o administrador avaliar.
+            </p>
+            <textarea
+              value={justification}
+              onChange={(e) => setJustification(e.target.value)}
+              rows={4}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/40 resize-none"
+              placeholder="Motivo pelo qual esse desconto é necessário..."
+            />
+            {approvalError && <p className="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">{approvalError}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setApprovalStep(null)} disabled={saving} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                Cancelar
+              </button>
+              <button type="button" onClick={enviarSolicitacao} disabled={saving || !justification.trim()} className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: 'var(--brand)' }}>
+                {saving ? 'Enviando...' : 'Enviar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   )
 }

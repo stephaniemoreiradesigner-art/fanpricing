@@ -2,6 +2,7 @@
 
 import { Menu } from 'lucide-react'
 import { useSidebar } from './SidebarProvider'
+import { NotificationBell } from './NotificationBell'
 
 export function Header() {
   const { toggle } = useSidebar()
@@ -26,8 +27,11 @@ export function Header() {
         <Menu size={20} />
       </button>
 
-      {/* Data */}
-      <span className="text-sm text-gray-500 ml-auto">{todayFormatted}</span>
+      {/* Data + notificações */}
+      <div className="ml-auto flex items-center gap-2">
+        <span className="text-sm text-gray-500">{todayFormatted}</span>
+        <NotificationBell />
+      </div>
     </header>
   )
 }

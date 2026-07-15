@@ -18,12 +18,14 @@ export async function sendEmail({
   to,
   subject,
   html,
+  cc,
 }: {
-  to: string
+  to: string | string[]
   subject: string
   html: string
+  cc?: string | string[]
 }) {
   const from = process.env.EMAIL_FROM ?? `"FanPricing" <noreply@fanpricing.com.br>`
   const transporter = createTransport()
-  await transporter.sendMail({ from, to, subject, html })
+  await transporter.sendMail({ from, to, subject, html, ...(cc ? { cc } : {}) })
 }

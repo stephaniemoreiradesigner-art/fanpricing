@@ -14,6 +14,10 @@ import type {
 //   → Custo Comercial → Base Operacional → Preço de Venda → Margem/Lucro Real
 // ============================================================================
 
+// Margem mínima (fração) sem exigir aprovação de admin. Abaixo disso, um
+// desconto precisa ser autorizado por um administrador (Fase 4 / FPNG-14).
+export const MIN_MARGIN_FOR_DISCOUNT = 0.32
+
 const EMPTY_CONFIG: Pick<
   PricingConfig,
   | 'ovh_pct'

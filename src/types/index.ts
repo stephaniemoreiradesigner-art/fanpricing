@@ -266,3 +266,37 @@ export interface QuoteProposal {
   created_at: string
   client?: Client
 }
+
+// ---- Fase 4: aprovação de desconto (<32% de margem) + notificações ----
+export type DiscountApprovalStatus = 'pending' | 'approved' | 'rejected'
+
+export interface DiscountApproval {
+  id: string
+  quote_id: string | null
+  requested_by: string | null
+  requested_by_name: string | null
+  discount_pct: number
+  margin_pct: number | null      // fração (0.30 = 30%)
+  justification: string
+  status: DiscountApprovalStatus
+  reviewed_by: string | null
+  reviewer_name: string | null
+  decision_reason: string | null
+  created_at: string
+  decided_at: string | null
+  // joins opcionais para a tela
+  quote?: Quote
+}
+
+export type NotificationType = 'discount_request' | 'discount_approved' | 'discount_rejected'
+
+export interface AppNotification {
+  id: string
+  user_id: string
+  type: NotificationType
+  title: string
+  body: string | null
+  link: string | null
+  read: boolean
+  created_at: string
+}

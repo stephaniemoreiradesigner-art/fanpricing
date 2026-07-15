@@ -98,3 +98,74 @@ export function passwordResetEmailTemplate(opts: {
     </p>`
   return baseLayout(content, { brandColor, companyName })
 }
+
+// ---- Fase 4: aprovação de desconto -----------------------------------------
+
+// E-mail enviado aos administradores quando um desconto <32% de margem é solicitado.
+export function discountRequestEmailTemplate(opts: {
+  requesterName: string
+  discountPct: number
+  marginPct: number // fração (0.28 = 28%)
+  justification: string
+  approvalUrl: string
+  brandColor: string
+  companyName: string
+}) {
+  const { requesterName, discountPct, marginPct, justification, approvalUrl, brandColor, companyName } = opts
+  const content = `
+    <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827;">Aprovação de desconto solicitada</h2>
+    <p style="margin:0 0 16px;font-size:15px;color:#6b7280;line-height:1.6;">
+      <strong>${requesterName || 'Um usuário'}</strong> solicitou um desconto que reduz a margem abaixo do limite.
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:14px;color:#374151;">
+      <tr><td style="padding:6px 0;">Desconto solicitado</td><td style="padding:6px 0;text-align:right;font-weight:700;">${discountPct}%</td></tr>
+      <tr><td style="padding:6px 0;">Margem resultante</td><td style="padding:6px 0;text-align:right;font-weight:700;color:#dc2626;">${(marginPct * 100).toFixed(1)}%</td></tr>
+    </table>
+    <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#374151;">Justificativa:</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#4b5563;line-height:1.6;background:#f9fafb;border-radius:8px;padding:12px 14px;white-space:pre-wrap;">${justification}</p>
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${approvalUrl}"
+         style="display:inline-block;padding:14px 32px;background:${brandColor};color:#ffffff;text-decoration:none;border-radius:10px;font-size:15px;font-weight:600;">
+        Aprovar ou recusar
+      </a>
+    </div>
+    <p style="margin:0;font-size:13px;color:#9ca3af;text-align:center;">
+      Você também pode acessar pelo sino de notificações dentro do sistema.
+    </p>`
+  return baseLayout(content, { brandColor, companyName })
+}
+
+// E-mail enviado ao solicitante quando o desconto é aprovado ou recusado.
+export function discountDecisionEmailTemplate(opts: {
+  requesterName: string
+  approved: boolean
+  discountPct: number
+  reviewerName: string
+  decisionReason?: string | null
+  quoteUrl: string
+  brandColor: string
+  companyName: string
+}) {
+  const { requesterName, approved, discountPct, reviewerName, decisionReason, quoteUrl, brandColor, companyName } = opts
+  const titulo = approved ? 'Desconto aprovado' : 'Desconto recusado'
+  const cor = approved ? '#16a34a' : '#dc2626'
+  const content = `
+    <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:${cor};">${titulo}</h2>
+    <p style="margin:0 0 16px;font-size:15px;color:#6b7280;line-height:1.6;">
+      Olá${requesterName ? `, ${requesterName}` : ''}! Sua solicitação de desconto de <strong>${discountPct}%</strong>
+      foi <strong style="color:${cor};">${approved ? 'aprovada' : 'recusada'}</strong> por ${reviewerName || 'um administrador'}.
+    </p>
+    ${
+      !approved && decisionReason
+        ? `<p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#374151;">Motivo:</p>
+           <p style="margin:0 0 24px;font-size:14px;color:#4b5563;line-height:1.6;background:#f9fafb;border-radius:8px;padding:12px 14px;white-space:pre-wrap;">${decisionReason}</p>`
+        : ''
+    }
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${quoteUrl}"
+         style="display:inline-block;padding:14px 32px;background:${brandColor};color:#ffffff;text-decoration:none;border-radius:10px;font-size:15px;font-weight:600;">
+        Ver orçamento
+      </a>
+    </div>`
+  return baseLayout(content, { brandColor, companyName })
+}
