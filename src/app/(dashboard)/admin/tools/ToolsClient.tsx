@@ -132,6 +132,11 @@ function ToolRow({
   onCancel: () => void
 }) {
   const [saving, setSaving] = useState(false)
+  const [costText, setCostText] = useState(
+    item
+      ? item.monthly_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : ''
+  )
 
   async function handleSubmit(formData: FormData) {
     setSaving(true)
@@ -157,11 +162,12 @@ function ToolRow({
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">R$</span>
           <input
             form={formId}
-            type="number"
+            type="text"
+            inputMode="decimal"
             name="monthly_cost"
-            defaultValue={item?.monthly_cost ?? 0}
-            min={0}
-            step={10}
+            value={costText}
+            placeholder="0,00"
+            onChange={(e) => setCostText(e.target.value)}
             required
             className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg pl-9 pr-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent"
           />

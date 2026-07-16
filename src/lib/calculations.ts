@@ -159,6 +159,37 @@ export function calcProductPrice(product: Product, markup: number): number {
   return laborCost * markup + toolsCost
 }
 
+/**
+ * Interpreta um valor monetario digitado em formato livre - aceita separador
+ * decimal por virgula ou ponto, milhar com ponto (padrao BR: "2.152,50"),
+ * espacos e o prefixo "R$". Usado nos campos de valor em vez de depender da
+ * validacao nativa de input number com step, que rejeita qualquer valor que
+ * nao seja multiplo exato do step (ex: step=100 rejeitando 2143).
+ */
+export function parseCurrencyInput(raw: string): number {
+  if (!raw) return 0
+  let s = raw.replace(/[^\d.,-]/g, '').trim()
+  if (!s) return 0
+
+  const hasComma = s.includes(',')
+  const hasDot = s.includes('.')
+
+  if (hasComma && hasDot) {
+    // "2.152,50" -> ponto = milhar, virgula = decimal
+    s = s.replace(/\./g, '').replace(',', '.')
+  } else if (hasComma) {
+    // "2152,50" -> virgula = decimal
+    s = s.replace(',', '.')
+  } else if (hasDot && /^\d{1,3}(\.\d{3})+$/.test(s)) {
+    // "2.152" (sem decimais) -> ponto = milhar
+    s = s.replace(/\./g, '')
+  }
+  // Ponto unico isolado ("2152.5") ja e decimal - segue sem alteracao.
+
+  const n = parseFloat(s)
+  return isNaN(n) ? 0 : n
+}
+
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
