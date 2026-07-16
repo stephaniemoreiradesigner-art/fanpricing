@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import { Pencil, Trash2, Check, X, Plus, Upload, FileDown } from 'lucide-react'
 import { createLabor, updateLabor, deleteLabor, importLaborCSV } from '@/app/actions/labor'
-import { formatCurrency } from '@/lib/calculations'
+import { formatCurrency, parseCurrencyInput } from '@/lib/calculations'
 import type { Labor } from '@/types'
 
 const LEVELS: Record<Labor['level'], string> = {
@@ -94,9 +94,7 @@ export function LaborClient({ items }: Props) {
       .map((r) => ({
         title: r.cargo || r.titulo || r.title || '',
         level: normalizeLevel(r.nivel || r.level || 'pleno'),
-        monthly_salary: parseFloat(
-          (r.salario_mensal || r.salario || r.monthly_salary || '0').replace(',', '.')
-        ),
+        monthly_salary: parseCurrencyInput(r.salario_mensal || r.salario || r.monthly_salary || '0'),
       }))
       .filter((r) => r.title && r.monthly_salary > 0)
 
@@ -253,10 +251,15 @@ function LaborRow({
   onSave: (formData: FormData) => Promise<void>
   onCancel: () => void
 }) {
-  const [salary, setSalary] = useState(item?.monthly_salary ?? 0)
+  const [salaryText, setSalaryText] = useState(
+    item
+      ? item.monthly_salary.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : ''
+  )
   const [regime, setRegime] = useState<'clt' | 'pj'>(item?.regime ?? 'clt')
   const [hours, setHours] = useState(item?.monthly_hours ?? 220)
   const [saving, setSaving] = useState(false)
+  const salary = parseCurrencyInput(salaryText)
   const hourlyRate = hours > 0 ? salary / hours : 0
 
   function handleRegimeChange(next: 'clt' | 'pj') {
@@ -315,7 +318,7 @@ function LaborRow({
           name="monthly_hours"
           value={hours}
           min={1}
-          step={1}
+          step="any"
           onChange={(e) => setHours(parseFloat(e.target.value) || 0)}
           required
           className="w-24 bg-white text-gray-900 border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent"
@@ -326,12 +329,12 @@ function LaborRow({
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">R$</span>
           <input
             form={formId}
-            type="number"
+            type="text"
+            inputMode="decimal"
             name="monthly_salary"
-            value={salary}
-            min={0}
-            step={100}
-            onChange={(e) => setSalary(parseFloat(e.target.value) || 0)}
+            value={salaryText}
+            placeholder="0,00"
+            onChange={(e) => setSalaryText(e.target.value)}
             required
             className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg pl-9 pr-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent"
           />
