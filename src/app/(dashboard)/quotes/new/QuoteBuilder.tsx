@@ -192,7 +192,7 @@ export function QuoteBuilder({ clients, labor, tools, config, defaultClientId = 
                         value={line.allocation_pct}
                         min={0}
                         max={100}
-                        step="any"
+                        step={5}
                         onChange={(e) => updateLaborLine(line.labor_id, { allocation_pct: parseFloat(e.target.value) || 0 })}
                         className="w-full border border-gray-300 rounded-lg px-2 py-1.5 pr-5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
                       />
@@ -205,7 +205,7 @@ export function QuoteBuilder({ clients, labor, tools, config, defaultClientId = 
                       type="number"
                       value={line.monthly_hours}
                       min={1}
-                      step="any"
+                      step={1}
                       onChange={(e) => updateLaborLine(line.labor_id, { monthly_hours: parseFloat(e.target.value) || 0 })}
                       className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
                     />
@@ -322,7 +322,7 @@ export function QuoteBuilder({ clients, labor, tools, config, defaultClientId = 
                     value={discount}
                     min={0}
                     max={100}
-                    step="any"
+                    step={0.5}
                     onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-7 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent"
                   />

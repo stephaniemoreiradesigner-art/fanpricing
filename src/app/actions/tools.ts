@@ -2,13 +2,12 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { parseCurrencyInput } from '@/lib/calculations'
 
 export async function createTool(formData: FormData) {
   const supabase = await createClient()
   await supabase.from('tools').insert({
     name: formData.get('name') as string,
-    monthly_cost: parseCurrencyInput(formData.get('monthly_cost') as string),
+    monthly_cost: parseFloat(formData.get('monthly_cost') as string) || 0,
   })
   revalidatePath('/admin/tools')
   revalidatePath('/quotes/new')
@@ -21,7 +20,7 @@ export async function updateTool(formData: FormData) {
     .from('tools')
     .update({
       name: formData.get('name') as string,
-      monthly_cost: parseCurrencyInput(formData.get('monthly_cost') as string),
+      monthly_cost: parseFloat(formData.get('monthly_cost') as string) || 0,
     })
     .eq('id', id)
   revalidatePath('/admin/tools')

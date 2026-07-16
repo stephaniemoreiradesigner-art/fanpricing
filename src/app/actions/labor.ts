@@ -2,13 +2,13 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { calcLaborHourlyRate, parseCurrencyInput } from '@/lib/calculations'
+import { calcLaborHourlyRate } from '@/lib/calculations'
 
 // Base de horas padrão por regime. CLT = 220h; PJ costuma usar base cheia.
 const DEFAULT_HOURS: Record<string, number> = { clt: 220, pj: 160 }
 
 function extractLabor(formData: FormData) {
-  const monthly_salary = parseCurrencyInput(formData.get('monthly_salary') as string)
+  const monthly_salary = parseFloat(formData.get('monthly_salary') as string) || 0
   const regime = ((formData.get('regime') as string) || 'clt') as 'clt' | 'pj'
   const monthly_hours =
     parseFloat(formData.get('monthly_hours') as string) || DEFAULT_HOURS[regime] || 220
