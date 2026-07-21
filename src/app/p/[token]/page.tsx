@@ -7,25 +7,31 @@ interface Props {
   params: Promise<{ token: string }>
 }
 
+// FPNG-1 — a tabela quote_proposals está fechada para o papel anon. O acesso
+// público por token passa só pelas funções security definer abaixo, que
+// retornam/atualizam apenas a linha do token pedido (nunca a lista inteira).
 export default async function PublicProposalPage({ params }: Props) {
   const { token } = await params
   const supabase = await createClient()
 
-  const { data: proposal } = await supabase
-    .from('quote_proposals')
-    .select('*, client:clients(razao_social, nome_fantasia)')
-    .eq('public_token', token)
-    .single()
+  const { data: proposalData, error } = await supabase.rpc('get_public_proposal', { p_token: token })
 
-  if (!proposal) notFound()
-  const p = proposal as QuoteProposal
+  if (error || !proposalData) notFound()
+  const raw = proposalData as Omit<QuoteProposal, 'client'> & {
+    client_razao_social: string | null
+    client_nome_fantasia: string | null
+  }
+  const p: Omit<QuoteProposal, 'client'> & { client?: { razao_social: string; nome_fantasia: string } } = {
+    ...raw,
+    client: {
+      razao_social: raw.client_razao_social ?? '',
+      nome_fantasia: raw.client_nome_fantasia ?? '',
+    },
+  }
 
   // Marca como visualizada (apenas na primeira vez)
   if (p.status === 'sent') {
-    await supabase
-      .from('quote_proposals')
-      .update({ status: 'viewed', viewed_at: new Date().toISOString() })
-      .eq('id', p.id)
+    await supabase.rpc('mark_proposal_viewed', { p_token: token })
   }
 
   const { data: customization } = await supabase
