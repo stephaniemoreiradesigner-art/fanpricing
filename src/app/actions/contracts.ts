@@ -8,6 +8,7 @@ import type { ContractStatus } from '@/types'
 // Marca a proposta como aceita.
 export async function createContractFromProposal(proposalId: string) {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
   const { data: proposal } = await supabase
     .from('quote_proposals')
@@ -21,6 +22,7 @@ export async function createContractFromProposal(proposalId: string) {
     proposal_id: proposalId,
     client_id: proposal.client_id,
     status: 'pending',
+    created_by: user?.id ?? null,
   })
 
   await supabase
